@@ -71,7 +71,7 @@ def calculatepafdistancebounds(
     # Read file path for pose_config file. >> pass it on
     cfg = auxiliaryfunctions.read_config(config)
 
-    if cfg["multianimalproject"] == True:
+    if cfg["multianimalproject"]:
         (
             individuals,
             uniquebodyparts,
@@ -119,10 +119,6 @@ def calculatepafdistancebounds(
         jointnames = [
             dlc_cfg.all_joints_names[i] for i in range(len(dlc_cfg.all_joints))
         ]
-
-        # plt.figure()
-        Cutoff = {}
-
         path_inferencebounds_config = (
             Path(modelfolder) / "test" / "inferencebounds.yaml"
         )
@@ -140,18 +136,15 @@ def calculatepafdistancebounds(
                             "y",
                         ) in Data.keys():
                             distances = np.sqrt(
-                                (Data[ind, j1, "x"] - Data[ind2, j1, "x"]) ** 2
+                                (Data[ind, j1, "x"] - Data[ind2, j2, "x"]) ** 2
                                 + (Data[ind, j1, "y"] - Data[ind2, j2, "y"]) ** 2
-                            )
+                            ) / dlc_cfg["stride"]
                         else:
                             distances = None
 
                         if distances is not None:
-                            if onlytrain:  # extracts only distances on training data.
+                            if onlytrain:
                                 distances = distances.iloc[trainIndices]
-
-                            # source=np.array(Data[ind,j1,'x'][jj],Data[ind,j1,'y'][jj])
-                            # target=np.array(Data[ind2,j1,'x'][jj],Data[ind2,j2,'y'][jj])
                             if ind == ind2:
                                 ds_within.extend(distances.values.flatten())
                             else:
@@ -170,7 +163,7 @@ def calculatepafdistancebounds(
                 inferenceboundscfg[edgeencoding]["intra_max"] = str(
                     1e5
                 )  # large number (larger than any image diameter)
-                inferenceboundscfg[edgeencoding]["intra_min"] = str(1e5)
+                inferenceboundscfg[edgeencoding]["intra_min"] = str(0)
 
             # NOTE: the inter-animal distances are currently not used, but are interesting to compare to intra_*
             if len(ds_across) > 0:
@@ -184,12 +177,7 @@ def calculatepafdistancebounds(
                 inferenceboundscfg[edgeencoding]["inter_max"] = str(
                     1e5
                 )  # large number (larger than image diameters in typical experiments)
-                inferenceboundscfg[edgeencoding]["inter_min"] = str(1e5)
-
-            # print(inferenceboundscfg)
-            # plt.subplot(len(partaffinityfield_graph),1,pi+1)
-            # plt.hist(ds_within,bins=np.linspace(0,100,21),color='red')
-            # plt.hist(ds_across,bins=np.linspace(0,100,21),color='blue')
+                inferenceboundscfg[edgeencoding]["inter_min"] = str(0)
 
         auxiliaryfunctions.write_plainconfig(
             str(path_inferencebounds_config), dict(inferenceboundscfg)
@@ -572,14 +560,13 @@ def evaluate_network(
 
         # TODO: Make this code not so redundant!
         evaluate_multianimal_full(
-            config,
-            Shuffles,
-            trainingsetindex,
-            plotting,
-            show_errors,
-            comparisonbodyparts,
-            gputouse,
-            modelprefix,
+            config=config,
+            Shuffles=Shuffles,
+            trainingsetindex=trainingsetindex,
+            plotting=plotting,
+            comparisonbodyparts=comparisonbodyparts,
+            gputouse=gputouse,
+            modelprefix=modelprefix,
             c_engine=c_engine,
         )
     else:
@@ -871,7 +858,7 @@ def evaluate_network(
                         ]
                         final_result.append(results)
 
-                        if show_errors == True:
+                        if show_errors:
                             print(
                                 "Results for",
                                 trainingsiterations,
@@ -967,7 +954,7 @@ def evaluate_network(
 
 def make_results_file(final_result, evaluationfolder, DLCscorer):
     """
-    Makes result file in .h5 and csv format and saves under evaluation_results directory.
+    Makes result file in csv format and saves under evaluation_results directory.
     If the file exists (typically, when the network has already been evaluated),
     newer results are appended to it.
     """
@@ -988,7 +975,6 @@ def make_results_file(final_result, evaluationfolder, DLCscorer):
         df = pd.concat((df, temp)).reset_index(drop=True)
 
     df.to_csv(output_path)
-    # df.to_hdf(output_path.replace('csv', 'h5'), 'df_with_missing', format='table', mode='w')
 
 
 if __name__ == "__main__":
